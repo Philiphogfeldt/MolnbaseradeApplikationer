@@ -7,29 +7,37 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Microsoft.Azure.WebJobs.Host;
+using Microsoft.AspNetCore.Http.Internal;
+using System.Collections.Generic;
 
 namespace ServerlessFunction
 {
-    public static class Function1
+    public static class TodoApi
     {
-        [FunctionName("Function1")]
-        public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
-            ILogger log)
+        static List<Todo> items = new List<Todo>();
+
+        [FunctionName("CreateTodo")]
+        public static async Task<IActionResult> CreateTodo(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "todo")]HttpRequest req, TraceWriter log)
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
-
-            string name = req.Query["name"];
-
+            log.Info("Creating a new todo list item");
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic data = JsonConvert.DeserializeObject(requestBody);
-            name = name ?? data?.name;
+            var input = JsonConvert.DeserializeObject<TodoCreateModel>(requestBody);
 
-            string responseMessage = string.IsNullOrEmpty(name)
-                ? "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response."
-                : $"Hello, {name}. This HTTP triggered function executed successfully.";
-
-            return new OkObjectResult(responseMessage);
+            var todo = new Todo() { TaskDescription = input.TaskDescription };
+            items.Add(todo);
+            return new OkObjectResult(todo);
         }
+
+        [FunctionName("GetTodos")]
+        public static IActionResult GetTodos(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "todo")]HttpRequest req, TraceWriter log)
+        {
+            log.Info("Getting todo list items");
+            return new OkObjectResult(items);
+        }
+
+
     }
 }
